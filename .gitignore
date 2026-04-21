@@ -1,0 +1,4 @@
+*.dSYM
+debug_help_info.txt
+how_to_compile.txt
+mandelbrot
