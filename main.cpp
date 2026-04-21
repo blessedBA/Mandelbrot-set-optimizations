@@ -2,122 +2,160 @@
 
 #include "raylib.h"
 
-static Color escapeColor(const int n, const int maxIter);
+static Color escapeColor(const int n, const int max_iter);
 
 int main()
 {
-    const int screenWidth = 1500;
-    const int screenHeight = 700;
-    const int maxIter = 256;
+    const int screen_width = 1500;
+    const int screen_height = 700;
+    const int max_iter = 256;
 
-    InitWindow(screenWidth, screenHeight, "Mandelbrot set");
+    InitWindow(screen_width, screen_height, "Mandelbrot set");
     SetTargetFPS(120);
 
-    double xMin = -2.5;
-    double xMax = 1.0;
-    double yMin = -1.2;
-    double yMax = 1.2;
+    double x_min = -2.5;
+    double x_max = 1.0;
+    double y_min = -1.2;
+    double y_max = 1.2;
 
-    Image image = GenImageColor(screenWidth, screenHeight, BLACK);
+    Image image = GenImageColor(screen_width, screen_height, BLACK);
     Texture2D texture = LoadTextureFromImage(image);
 
-    bool viewDirty = true;
+    bool view_dirty = true;
 
     while (!WindowShouldClose())
     {
-        const double widthBeforeInput = xMax - xMin;
-        const double heightBeforeInput = yMax - yMin;
+        const double width_before_input = x_max - x_min;
+        const double height_before_input = y_max - y_min;
 
         if (IsKeyPressed(KEY_R))
         {
-            xMin = -2.5;
-            xMax = 1.0;
-            yMin = -1.2;
-            yMax = 1.2;
-            viewDirty = true;
+            x_min = -2.5;
+            x_max = 1.0;
+            y_min = -1.2;
+            y_max = 1.2;
+            view_dirty = true;
         }
 
-        const bool zoomInKeyHeld = IsKeyDown(KEY_EQUAL) || IsKeyDown(KEY_KP_ADD);
-        const bool zoomOutKeyHeld = IsKeyDown(KEY_MINUS) || IsKeyDown(KEY_KP_SUBTRACT);
-        if (zoomInKeyHeld || zoomOutKeyHeld)
+        const bool zoom_in_key_held = IsKeyDown(KEY_EQUAL) || IsKeyDown(KEY_KP_ADD);
+        const bool zoom_out_key_held = IsKeyDown(KEY_MINUS) || IsKeyDown(KEY_KP_SUBTRACT);
+        if (zoom_in_key_held || zoom_out_key_held)
         {
-            const double relX = 0.5;
-            const double relY = 0.5;
-            const double cX = xMin + relX * widthBeforeInput;
-            const double cY = yMax - relY * heightBeforeInput;
-            const double zoomFactor = zoomInKeyHeld ? 0.97 : 1.03;
-            const double newWidth = widthBeforeInput * zoomFactor;
-            const double newHeight = heightBeforeInput * zoomFactor;
+            const double rel_x = 0.5;
+            const double rel_y = 0.5;
+            const double c_x = x_min + rel_x * width_before_input;
+            const double c_y = y_max - rel_y * height_before_input;
+            const double zoom_factor = zoom_in_key_held ? 0.97 : 1.03;
+            const double new_width = width_before_input * zoom_factor;
+            const double new_height = height_before_input * zoom_factor;
 
-            xMin = cX - relX * newWidth;
-            xMax = xMin + newWidth;
-            yMax = cY + relY * newHeight;
-            yMin = yMax - newHeight;
-            viewDirty = true;
+            x_min = c_x - rel_x * new_width;
+            x_max = x_min + new_width;
+            y_max = c_y + rel_y * new_height;
+            y_min = y_max - new_height;
+            view_dirty = true;
         }
 
-        const double panStep = 0.015;
+        const double pan_step = 0.015;
         if (IsKeyDown(KEY_A) || IsKeyDown(KEY_LEFT))
         {
-            const double dx = widthBeforeInput * panStep;
-            xMin -= dx;
-            xMax -= dx;
-            viewDirty = true;
+            const double dx = width_before_input * pan_step;
+            x_min -= dx;
+            x_max -= dx;
+            view_dirty = true;
         }
         if (IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT))
         {
-            const double dx = widthBeforeInput * panStep;
-            xMin += dx;
-            xMax += dx;
-            viewDirty = true;
+            const double dx = width_before_input * pan_step;
+            x_min += dx;
+            x_max += dx;
+            view_dirty = true;
         }
         if (IsKeyDown(KEY_W) || IsKeyDown(KEY_UP))
         {
-            const double dy = heightBeforeInput * panStep;
-            yMin += dy;
-            yMax += dy;
-            viewDirty = true;
+            const double dy = height_before_input * pan_step;
+            y_min += dy;
+            y_max += dy;
+            view_dirty = true;
         }
         if (IsKeyDown(KEY_S) || IsKeyDown(KEY_DOWN))
         {
-            const double dy = heightBeforeInput * panStep;
-            yMin -= dy;
-            yMax -= dy;
-            viewDirty = true;
+            const double dy = height_before_input * pan_step;
+            y_min -= dy;
+            y_max -= dy;
+            view_dirty = true;
         }
 
-        if (viewDirty)
+        if (view_dirty)
         {
             Color *pixels = (Color *)image.data;
-            const double width = xMax - xMin;
-            const double height = yMax - yMin;
+            const double width = x_max - x_min;
+            const double height = y_max - y_min;
+            const int points_per_batch = 4;
 
-            for (int py = 0; py < screenHeight; ++py)
+            for (int py = 0; py < screen_height; ++py)
             {
-                const double y0 = yMax - ((double)py / (double)screenHeight) * height;
-                for (int px = 0; px < screenWidth; ++px)
+                const double y0 = y_max - ((double)py / (double)screen_height) * height;
+                for (int px = 0; px < screen_width; px += points_per_batch)
                 {
-                    const double x0 = xMin + ((double)px / (double)screenWidth) * width;
-
-                    double x = 0.0;
-                    double y = 0.0;
-                    int n = 0;
-                    while ((x * x + y * y <= 4.0) && (n < maxIter))
+                    int lane_count = screen_width - px;
+                    if (lane_count > points_per_batch)
                     {
-                        const double nextX = x * x - y * y + x0;
-                        const double nextY = 2.0 * x * y + y0;
-                        x = nextX;
-                        y = nextY;
-                        ++n;
+                        lane_count = points_per_batch;
                     }
 
-                    const int index = py * screenWidth + px;
-                    pixels[index] = (n == maxIter) ? BLACK : escapeColor(n, maxIter);
+                    double x0_batch[points_per_batch] = {0.0, 0.0, 0.0, 0.0};
+                    double x_batch[points_per_batch] = {0.0, 0.0, 0.0, 0.0};
+                    double y_batch[points_per_batch] = {0.0, 0.0, 0.0, 0.0};
+                    int n_batch[points_per_batch] = {0, 0, 0, 0};
+                    bool active_batch[points_per_batch] = {false, false, false, false};
+
+                    for (int lane = 0; lane < lane_count; ++lane)
+                    {
+                        const int px_lane = px + lane;
+                        x0_batch[lane] = x_min + ((double)px_lane / (double)screen_width) * width;
+                        active_batch[lane] = true;
+                    }
+
+                    int active_count = lane_count;
+                    while (active_count > 0)
+                    {
+                        for (int lane = 0; lane < lane_count; ++lane)
+                        {
+                            if (!active_batch[lane])
+                            {
+                                continue;
+                            }
+
+                            const double x = x_batch[lane];
+                            const double y = y_batch[lane];
+                            const double next_x = x * x - y * y + x0_batch[lane];
+                            const double next_y = 2.0 * x * y + y0;
+
+                            x_batch[lane] = next_x;
+                            y_batch[lane] = next_y;
+                            ++n_batch[lane];
+
+                            const double radius_sq = next_x * next_x + next_y * next_y;
+                            if (radius_sq > 4.0 || n_batch[lane] >= max_iter)
+                            {
+                                active_batch[lane] = false;
+                                --active_count;
+                            }
+                        }
+                    }
+
+                    for (int lane = 0; lane < lane_count; ++lane)
+                    {
+                        const int index = py * screen_width + (px + lane);
+                        const int n = n_batch[lane];
+                        pixels[index] = (n >= max_iter) ? BLACK : escapeColor(n, max_iter);
+                    }
                 }
             }
 
             UpdateTexture(texture, pixels);
-            viewDirty = false;
+            view_dirty = false;
         }
 
         BeginDrawing();
@@ -125,34 +163,39 @@ int main()
 
         DrawTexture(texture, 0, 0, WHITE);
 
-        if (xMin < 0.0 && xMax > 0.0)
+        if (x_min < 0.0 && x_max > 0.0)
         {
-            const int axisX = (int)std::lround((0.0 - xMin) * (double)screenWidth / (xMax - xMin));
-            DrawLine(axisX, 0, axisX, screenHeight, Fade(WHITE, 0.20f));
+            const int axis_x = (int)std::lround((0.0 - x_min) * (double)screen_width / (x_max - x_min));
+            DrawLine(axis_x, 0, axis_x, screen_height, Fade(WHITE, 0.20f));
         }
-        if (yMin < 0.0 && yMax > 0.0)
+        if (y_min < 0.0 && y_max > 0.0)
         {
-            const int axisY = (int)std::lround((yMax - 0.0) * (double)screenHeight / (yMax - yMin));
-            DrawLine(0, axisY, screenWidth, axisY, Fade(WHITE, 0.20f));
+            const int axis_y = (int)std::lround((y_max - 0.0) * (double)screen_height / (y_max - y_min));
+            DrawLine(0, axis_y, screen_width, axis_y, Fade(WHITE, 0.20f));
         }
 
         DrawRectangle(10, 10, 780, 70, Fade(BLACK, 0.65f));
         DrawText("Wheel or +/-: zoom, LMB drag or WASD/arrows: pan, R: reset", 20, 20, 20, RAYWHITE);
-        DrawText(TextFormat("x:[%.10f, %.10f]  y:[%.10f, %.10f]", xMin, xMax, yMin, yMax), 20, 44, 16, RAYWHITE);
-        DrawFPS(screenWidth - 110, 16);
+        DrawText(TextFormat("x:[%.10f, %.10f]  y:[%.10f, %.10f]", x_min, x_max, y_min, y_max), 20, 44, 16, RAYWHITE);
+        DrawFPS(screen_width - 110, 16);
 
         EndDrawing();
+#ifdef TEST
+        CloseWindow();
+#endif
     }
 
     UnloadTexture(texture);
     UnloadImage(image);
+#ifdef RELEASE
     CloseWindow();
+#endif
     return 0;
 }
 
-static Color escapeColor(const int n, const int maxIter)
+static Color escapeColor(const int n, const int max_iter)
 {
-    const float t = (maxIter > 0) ? ((float)n / (float)maxIter) : 0.0f;
+    const float t = (max_iter > 0) ? ((float)n / (float)max_iter) : 0.0f;
     const unsigned char r = (unsigned char)(9.0f * (1.0f - t) * t * t * t * 255.0f);
     const unsigned char g = (unsigned char)(15.0f * (1.0f - t) * (1.0f - t) * t * t * 255.0f);
     const unsigned char b = (unsigned char)(8.5f * (1.0f - t) * (1.0f - t) * (1.0f - t) * t * 255.0f);
