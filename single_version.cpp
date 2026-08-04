@@ -117,7 +117,7 @@ int main()
             }
 
             UpdateTexture(texture, pixels);
-            view_dirty = false;
+            //view_dirty = false;       for calculating performance programm shouldn't stop painting while nothing is happened
         }
 
         BeginDrawing();

@@ -8,6 +8,12 @@ static Color escapeColor(const int n, const int max_iter);
 
 typedef float point_t;
 
+static void fl_mul (point_t* __restrict dst, point_t* __restrict src1, point_t* __restrict src2);
+static void fl_add (point_t* __restrict dst, point_t* __restrict src1, point_t* __restrict src2);
+static void fl_sub (point_t* __restrict dst, point_t* __restrict src1, point_t* __restrict src2);
+static void int_sub (int* __restrict dst, int* __restrict src1, int* __restrict src2);
+static void int_add (int* __restrict dst, int* __restrict src1, int* __restrict src2);
+
 int main()
 {
     const int screen_width = 1500;
@@ -124,17 +130,10 @@ int main()
                         point_t xy_batch[PPB] = {};
                         point_t rad_sqr[PPB] = {};
 
-                        for (int lane = 0; lane < PPB; lane++)
-                            x_batch_sqr[lane] = x_batch[lane] * x_batch[lane];
-
-                        for (int lane = 0; lane < PPB; lane++)
-                            y_batch_sqr[lane] = y_batch[lane] * y_batch[lane];                       
-
-                        for (int lane = 0; lane < PPB; lane++)
-                            xy_batch[lane] = x_batch[lane] * y_batch[lane];
-
-                        for (int lane = 0; lane < PPB; lane++)
-                            rad_sqr[lane] = x_batch_sqr[lane] + y_batch_sqr[lane];
+                        fl_mul (x_batch_sqr, x_batch, x_batch);
+                        fl_mul (y_batch_sqr, y_batch, y_batch);
+                        fl_mul (xy_batch, x_batch, y_batch);
+                        fl_add (rad_sqr, x_batch_sqr, y_batch_sqr);
                             
                         int cmp[PPB] = {};
                         for (int lane = 0; lane < PPB; lane++)
@@ -144,13 +143,12 @@ int main()
                             mask |= (cmp[lane] << lane);
                         if (!mask) break;
                             
-                        for (int lane = 0; lane < PPB; lane++)
-                            n_batch[lane] = n_batch[lane] + cmp[lane];
+                        int_add (n_batch, n_batch, cmp);
 
-                        for (int lane = 0; lane < PPB; lane++)
-                            x_batch[lane] = x_batch_sqr[lane] - y_batch_sqr[lane] + x0_batch[lane];
-                        for (int lane = 0; lane < PPB; lane++)
-                            y_batch[lane] = xy_batch[lane] + xy_batch[lane] + y0_batch[lane];
+                        fl_sub (x_batch, x_batch_sqr, y_batch_sqr);
+                        fl_add (x_batch, x_batch, x0_batch);
+                        fl_add (y_batch, xy_batch, xy_batch);
+                        fl_add (y_batch, y_batch, y0_batch);
                     }
 
                     for (int lane = 0; lane < PPB; ++lane)
@@ -209,4 +207,44 @@ static Color escapeColor(const int n, const int max_iter)
     const unsigned char g = (unsigned char)(15.0f * (1.0f - t) * (1.0f - t) * t * t * 255.0f);
     const unsigned char b = (unsigned char)(8.5f * (1.0f - t) * (1.0f - t) * (1.0f - t) * t * 255.0f);
     return (Color){r, g, b, 255};
+}
+
+static void fl_mul (point_t* __restrict dst, point_t* __restrict src1, point_t* __restrict src2)
+{
+    for (int lane = 0; lane < PPB; lane++)
+    {
+        dst[lane] = src1[lane] * src2[lane];
+    }    
+}
+
+static void fl_add (point_t* __restrict dst, point_t* __restrict src1, point_t* __restrict src2)
+{
+    for (int lane = 0; lane < PPB; lane++)
+    {
+        dst[lane] = src1[lane] + src2[lane];
+    }
+}
+
+static void fl_sub (point_t* __restrict dst, point_t* __restrict src1, point_t* __restrict src2)
+{
+    for (int lane = 0; lane < PPB; lane++)
+    {
+        dst[lane] = src1[lane] - src2[lane];
+    }
+}
+
+static void int_sub (int* __restrict dst, int* __restrict src1, int* __restrict src2)
+{
+    for (int lane = 0; lane < PPB; lane++)
+    {
+        dst[lane] = src1[lane] - src2[lane];
+    }
+}
+
+static void int_add (int* __restrict dst, int* __restrict src1, int* __restrict src2)
+{
+    for (int lane = 0; lane < PPB; lane++)
+    {
+        dst[lane] = src1[lane] + src2[lane];
+    }
 }
